@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Votação</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Sistema de Votação - Hyperledger Fabric</h1>
+    <div class="info-row">
+        <div class="info-group">
+            <h2>Candidatos</h2>
+            <ul id="candidates-list"></ul>
+        </div>
+
+        <div class="info-group">
+            <h2>Eleitores</h2>
+            <ul id="voters-list"></ul>
+        </div>
+        <div class="info-group">
+            <h2>Votos</h2>
+            <ul id="votes-list"></ul>
+        </div>
+    </div>
+    <div class="create-vote-form">
+        <h2>Cadastrar Novo Voto</h2>
+        <form id="vote-form">
+            <label for="voteId">ID do Voto:</label>
+            <input type="text" id="voteId" name="voteId" required><br><br>
+            <label for="voterId">ID do Eleitor:</label>
+            <input type="text" id="voterId" name="voterId" required><br><br>
+            <label for="candidateId">ID do Candidato:</label>
+            <input type="text" id="candidateId" name="candidateId" required><br><br>
+            <button type="submit">Cadastrar Voto</button>
+        </form>
+    </div>
+
+    <script>
+        async function fetchAssets() {
+            const response = await fetch('/api/assets');
+            const assets = await response.json();
+
+            const candidatesList = document.getElementById('candidates-list');
+            const votersList = document.getElementById('voters-list');
+            const votesList = document.getElementById('votes-list');
+
+            candidatesList.innerHTML = '';
+            votersList.innerHTML = '';
+            votesList.innerHTML = '';
+
+            assets.forEach(asset => {
+                const li = document.createElement('li');
+                if (asset.docType === 'candidate') {
+                    li.textContent = `ID: ${asset.ID}, Nome: ${asset.Name}, Partido: ${asset.Party}, Votos: ${asset.Votes}`;
+                    candidatesList.appendChild(li);
+                } else if (asset.docType === 'voter') {
+                    li.textContent = `ID: ${asset.ID}, Nome: ${asset.Name}, Registrado: ${asset.Registered}`;
+                    votersList.appendChild(li);
+                } else if (asset.docType === 'vote') {
+                    li.textContent = `ID: ${asset.ID}, Eleitor ID: ${asset.VoterID}, Candidato ID: ${asset.CandidateID}`;
+                    votesList.appendChild(li);
+                }
+            });
+        }
+
+        async function submitVote(event) {
+            event.preventDefault();
+            const voteId = document.getElementById('voteId').value;
+            const voterId = document.getElementById('voterId').value;
+            const candidateId = document.getElementById('candidateId').value;
+
+            console.log({voteId})
+            console.log({voterId})
+            console.log({candidateId})
+
+            const response = await fetch('/api/vote', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ voteId, voterId, candidateId }),
+            });
+
+            if (response.ok) {
+                alert('Voto cadastrado com sucesso!');
+                fetchAssets();
+            } else {
+                alert('Erro ao cadastrar voto.');
+            }
+        }
+
+        document.getElementById('vote-form').addEventListener('submit', submitVote);
+
+        window.onload = fetchAssets;
+    </script>
+</body>
+</html>

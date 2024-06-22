@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h1>Hyperledger Fabric Assets</h1>
+    <ul id="assets-list"></ul>
+
+    <script>
+        async function fetchAssets() {
+            const response = await fetch('/api/assets');
+            const assets = await response.json();
+
+            const assetsList = document.getElementById('assets-list');
+            assetsList.innerHTML = '';
+            assets.forEach(asset => {
+                const li = document.createElement('li');
+                li.textContent = `${asset.ID}: ${asset.Color} - ${asset.Size} - ${asset.Owner} - ${asset.AppraisedValue}`;
+                assetsList.appendChild(li);
+            });
+        }
+
+        window.onload = fetchAssets;
+    </script>
+</body>
+</html>
