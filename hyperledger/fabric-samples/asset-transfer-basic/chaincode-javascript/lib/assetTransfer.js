@@ -10,6 +10,9 @@
 const stringify = require('json-stringify-deterministic');
 const sortKeysRecursive = require('sort-keys-recursive');
 const { Contract } = require('fabric-contract-api');
+// Importar lib para fazer hash de strings
+const crypto = require('crypto');
+
 
 class AssetTransfer extends Contract {
 
@@ -109,12 +112,18 @@ class AssetTransfer extends Contract {
         //     await ctx.stub.putState(asset.ID, Buffer.from(stringify(sortKeysRecursive(asset))));
         // }
 
+        // Funcao para fazer hash de uma string
+        function hashString(string) {
+            return crypto.createHash('sha256').update(string).digest('hex');
+        }        
+
         for (const candidate of candidates) {
             candidate.docType = 'candidate';
             await ctx.stub.putState(candidate.ID, Buffer.from(stringify(sortKeysRecursive(candidate))));
         }
 
         for (const voter of voters) {
+            voter.Name = hashString(voter.Name);
             voter.docType = 'voter';
             await ctx.stub.putState(voter.ID, Buffer.from(stringify(sortKeysRecursive(voter))));
         }
@@ -188,31 +197,32 @@ class AssetTransfer extends Contract {
     }
 
     // Método para lançar um voto
-    async CastVote(ctx, id, voterID, candidateID) {
-        const voteExists = await this.AssetExists(ctx, id);
-        if (voteExists) {
-            throw new Error(`The vote ${id} already exists`);
+    async CreateVote(ctx, id, voterId, candidateId) {
+
+        const exists = await this.AssetExists(ctx, id);
+        if (exists) {
+            throw new Error(`O voto ${id} já existe`);
         }
 
-        const voter = await this.ReadAsset(ctx, voterID);
-        if (!voter || !voter.Registered) {
-            throw new Error(`The voter ${voterID} is not registered`);
+        const voter = await this.ReadAsset(ctx, voterId);
+        if (!voter) {
+            throw new Error(`The voter ${voterId} is not registered`);
         }
 
-        const candidate = await this.ReadAsset(ctx, candidateID);
+        const candidate = await this.ReadAsset(ctx, candidateId);
         if (!candidate) {
-            throw new Error(`The candidate ${candidateID} does not exist`);
+            throw new Error(`The candidate ${candidateId} does not exist`);
         }
+
 
         const vote = {
             ID: id,
-            VoterID: voterID,
-            CandidateID: candidateID,
+            VoterID: voterId,
+            CandidateID: candidateId,
+            docType: 'vote',
         };
 
-        candidate.Votes += 1;
         await ctx.stub.putState(id, Buffer.from(stringify(sortKeysRecursive(vote))));
-        await ctx.stub.putState(candidate.ID, Buffer.from(stringify(sortKeysRecursive(candidate))));
         return JSON.stringify(vote);
     }
 
@@ -283,36 +293,6 @@ class AssetTransfer extends Contract {
         return JSON.stringify(allResults);
     }
 
-    async CreateVote(ctx, id, voterId, candidateId) {
-
-        console.log(id, voterId, candidateId);
-
-        const exists = await this.AssetExists(ctx, id);
-        if (exists) {
-            throw new Error(`O voto ${id} já existe`);
-        }
-
-        const voter = await this.ReadAsset(ctx, voterId);
-        if (!voter) {
-            throw new Error(`The voter ${voterId} is not registered`);
-        }
-
-        const candidate = await this.ReadAsset(ctx, candidateId);
-        if (!candidate) {
-            throw new Error(`The candidate ${candidateId} does not exist`);
-        }
-
-
-        const vote = {
-            ID: id,
-            VoterID: voterId,
-            CandidateID: candidateId,
-            docType: 'vote',
-        };
-
-        await ctx.stub.putState(id, Buffer.from(stringify(sortKeysRecursive(vote))));
-        return JSON.stringify(vote);
-    }
 }
 
 module.exports = AssetTransfer;
