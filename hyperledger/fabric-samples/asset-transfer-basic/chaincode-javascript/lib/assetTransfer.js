@@ -17,63 +17,18 @@ const crypto = require('crypto');
 class AssetTransfer extends Contract {
 
     async InitLedger(ctx) {
-        // const assets = [
-        //     {
-        //         ID: 'voto1',
-        //         Color: 'azul',
-        //         Size: 5,
-        //         Owner: 'Tomoko',
-        //         AppraisedValue: 300,
-        //     },
-        //     {
-        //         ID: 'voto2',
-        //         Color: 'vermelho',
-        //         Size: 5,
-        //         Owner: 'Brad',
-        //         AppraisedValue: 400,
-        //     },
-        //     {
-        //         ID: 'voto3',
-        //         Color: 'verde',
-        //         Size: 10,
-        //         Owner: 'Jin Soo',
-        //         AppraisedValue: 500,
-        //     },
-        //     {
-        //         ID: 'voto4',
-        //         Color: 'amarelo',
-        //         Size: 10,
-        //         Owner: 'Max',
-        //         AppraisedValue: 600,
-        //     },
-        //     {
-        //         ID: 'voto5',
-        //         Color: 'preto',
-        //         Size: 15,
-        //         Owner: 'Adriana',
-        //         AppraisedValue: 700,
-        //     },
-        //     {
-        //         ID: 'voto6',
-        //         Color: 'branco',
-        //         Size: 15,
-        //         Owner: 'Michel',
-        //         AppraisedValue: 800,
-        //     },
-        // ];
-
         const candidates = [
             {
                 ID: 'candidate1',
                 Name: 'Alice',
                 Party: 'Partido A',
-                Votes: 0,
+                Votes: 1,
             },
             {
                 ID: 'candidate2',
                 Name: 'Bob',
                 Party: 'Partido B',
-                Votes: 0,
+                Votes: 1,
             }
         ];
 
@@ -103,15 +58,6 @@ class AssetTransfer extends Contract {
             }
         ];
 
-        // for (const asset of assets) {
-        //     asset.docType = 'asset';
-        //     // example of how to write to world state deterministically
-        //     // use convetion of alphabetic order
-        //     // we insert data in alphabetic order using 'json-stringify-deterministic' and 'sort-keys-recursive'
-        //     // when retrieving data, in any lang, the order of data will be the same and consequently also the corresonding hash
-        //     await ctx.stub.putState(asset.ID, Buffer.from(stringify(sortKeysRecursive(asset))));
-        // }
-
         // Funcao para fazer hash de uma string
         function hashString(string) {
             return crypto.createHash('sha256').update(string).digest('hex');
@@ -134,25 +80,6 @@ class AssetTransfer extends Contract {
         }
 
     }
-
-    // // CreateAsset issues a new asset to the world state with given details.
-    // async CreateAsset(ctx, id, color, size, owner, appraisedValue) {
-    //     const exists = await this.AssetExists(ctx, id);
-    //     if (exists) {
-    //         throw new Error(`The asset ${id} already exists`);
-    //     }
-
-    //     const asset = {
-    //         ID: id,
-    //         Color: color,
-    //         Size: size,
-    //         Owner: owner,
-    //         AppraisedValue: appraisedValue,
-    //     };
-    //     // we insert data in alphabetic order using 'json-stringify-deterministic' and 'sort-keys-recursive'
-    //     await ctx.stub.putState(id, Buffer.from(stringify(sortKeysRecursive(asset))));
-    //     return JSON.stringify(asset);
-    // }
 
     // Método para criar um novo candidato
     async CreateCandidate(ctx, id, name, party) {
@@ -198,23 +125,27 @@ class AssetTransfer extends Contract {
 
     // Método para lançar um voto
     async CreateVote(ctx, id, voterId, candidateId) {
-
         const exists = await this.AssetExists(ctx, id);
         if (exists) {
             throw new Error(`O voto ${id} já existe`);
         }
 
-        const voter = await this.ReadAsset(ctx, voterId);
-        if (!voter) {
-            throw new Error(`The voter ${voterId} is not registered`);
+        const voterString = await this.ReadAsset(ctx, voterId);
+        const voter = JSON.parse(voterString);
+        if (!voter || voter.docType !== 'voter') {
+            throw new Error(`O eleitor ${voterId} não está registrado`);
         }
 
-        const candidate = await this.ReadAsset(ctx, candidateId);
-        if (!candidate) {
-            throw new Error(`The candidate ${candidateId} does not exist`);
+        const candidateString = await this.ReadAsset(ctx, candidateId);
+        const candidate = JSON.parse(candidateString);
+        if (!candidate || candidate.docType !== 'candidate') {
+            throw new Error(`O candidato ${candidateId} não existe`);
         }
 
+        // Incrementa o número de votos do candidato
+        candidate.Votes += 1;
 
+        // Cria o objeto do voto
         const vote = {
             ID: id,
             VoterID: voterId,
@@ -222,7 +153,9 @@ class AssetTransfer extends Contract {
             docType: 'vote',
         };
 
+        // Atualiza o estado do voto e do candidato
         await ctx.stub.putState(id, Buffer.from(stringify(sortKeysRecursive(vote))));
+        await ctx.stub.putState(candidate.ID, Buffer.from(stringify(sortKeysRecursive(candidate))));
         return JSON.stringify(vote);
     }
 
